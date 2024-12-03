@@ -1,5 +1,5 @@
 /**
- * @file timer_modes.c
+ * @file timer.c
  * @brief Timer state transitions with multiple modes (Countdown, Stopwatch, Disabled).
  */
 
