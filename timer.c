@@ -1,138 +1,99 @@
 /**
- * @file timer.c
- * @brief Timer API for an embedded system.
- * 
- * This file implements a timer module with the following functionality:
- * - Initialize a timer.
- * - Set a timer with a specific duration.
- * - Decrement the timer value periodically.
- * - Trigger an interrupt when the timer reaches zero.
- * - Reset the timer to its initial state.
- * 
- * ## Overview
- * This timer API simulates the behavior of a hardware timer. It allows
- * users to configure a timer, track its countdown, and handle interrupts
- * when the countdown is complete.
+ * @file timer_modes.c
+ * @brief Timer state transitions with multiple modes (Countdown, Stopwatch, Disabled).
  */
 
-#include <stdio.h>
 #include <stdbool.h>
-
-/// Maximum timer duration
-#define MAX_DURATION 255
+#include <stdint.h>
 
 /**
- * @struct Timer
- * @brief Represents the state of a timer.
+ * @brief Maximum duration of the timer.
+ */
+#define MAX_DURATION 10
+
+/**
+ * @brief Timer modes.
+ */
+typedef enum {
+    MODE_DISABLED,  /**< Timer is disabled. */
+    MODE_COUNTDOWN, /**< Countdown mode. */
+    MODE_STOPWATCH  /**< Stopwatch mode. */
+} TimerMode;
+
+/**
+ * @brief Timer state variables.
  */
 typedef struct {
-    int value;          /**< Current value of the timer (0 to MAX_DURATION). */
-    bool enabled;       /**< Indicates whether the timer is active. */
-    bool interrupt_flag; /**< Indicates whether the timer has triggered an interrupt. */
-} Timer;
+    int timer_value;      /**< Current value of the timer. */
+    bool timer_enabled;   /**< Whether the timer is enabled. */
+    bool interrupt_flag;  /**< Whether an interrupt is triggered. */
+    TimerMode timer_mode; /**< Current mode of the timer. */
+} TimerState;
 
 /**
- * @brief Initializes the timer to its default state.
- * 
- * @param timer Pointer to the Timer object to initialize.
+ * @brief Initializes the timer.
+ * @param state Pointer to the timer state.
  */
-void initTimer(Timer* timer) {
-    timer->value = 0;
-    timer->enabled = false;
-    timer->interrupt_flag = false;
+void initTimer(TimerState *state) {
+    state->timer_value = 0;
+    state->timer_enabled = false;
+    state->interrupt_flag = false;
+    state->timer_mode = MODE_DISABLED;
 }
 
 /**
- * @brief Sets the timer with a specific duration and enables it.
- * 
- * @param timer Pointer to the Timer object to modify.
- * @param duration Duration to set (1 to MAX_DURATION).
- * @return true if the timer was successfully set, false otherwise.
- * @note The duration must be within the range 1 to MAX_DURATION.
+ * @brief Sets the timer in Countdown mode.
+ * @param state Pointer to the timer state.
+ * @param value New timer value (must be within 1 to MAX_DURATION).
  */
-bool setTimer(Timer* timer, int duration) {
-    if (duration > 0 && duration <= MAX_DURATION) {
-        timer->value = duration;
-        timer->enabled = true;
-        timer->interrupt_flag = false;
-        return true;
+void setCountdownTimer(TimerState *state, int value) {
+    if (value > 0 && value <= MAX_DURATION) {
+        state->timer_value = value;
+        state->timer_enabled = true;
+        state->interrupt_flag = false;
+        state->timer_mode = MODE_COUNTDOWN;
     }
-    return false;
 }
 
 /**
- * @brief Decrements the timer value by 1 if it is enabled and greater than 0.
- * 
- * @param timer Pointer to the Timer object to modify.
- * @return true if the timer value was decremented, false otherwise.
+ * @brief Decrements the timer value by 1 in Countdown mode.
+ * @param state Pointer to the timer state.
  */
-bool decrementTimer(Timer* timer) {
-    if (timer->enabled && timer->value > 0) {
-        timer->value--;
-        return true;
+void decrementTimer(TimerState *state) {
+    if (state->timer_enabled && state->timer_mode == MODE_COUNTDOWN && state->timer_value > 0) {
+        state->timer_value--;
     }
-    return false;
 }
 
 /**
- * @brief Checks and triggers an interrupt if the timer reaches zero.
- * 
- * @param timer Pointer to the Timer object to check.
- * @return true if an interrupt was triggered, false otherwise.
+ * @brief Increments the timer value in Stopwatch mode.
+ * @param state Pointer to the timer state.
  */
-bool triggerInterrupt(Timer* timer) {
-    if (timer->enabled && timer->value == 0) {
-        timer->interrupt_flag = true;
-        timer->enabled = false;
-        return true;
+void incrementStopwatch(TimerState *state) {
+    if (state->timer_enabled && state->timer_mode == MODE_STOPWATCH) {
+        state->timer_value++;
     }
-    return false;
 }
 
 /**
- * @brief Resets the timer to its default state.
- * 
- * @param timer Pointer to the Timer object to reset.
+ * @brief Triggers an interrupt in Countdown mode.
+ * @param state Pointer to the timer state.
  */
-void resetTimer(Timer* timer) {
-    timer->value = 0;
-    timer->enabled = false;
-    timer->interrupt_flag = false;
+void triggerInterrupt(TimerState *state) {
+    if (state->timer_enabled && state->timer_mode == MODE_COUNTDOWN && state->timer_value == 0) {
+        state->interrupt_flag = true;
+        state->timer_enabled = false;
+        state->timer_mode = MODE_DISABLED;
+    }
 }
 
 /**
- * @brief Demonstrates the timer functionality.
- * 
- * @note This is an example usage of the Timer API.
+ * @brief Resets the timer.
+ * @param state Pointer to the timer state.
  */
-int main() {
-    Timer myTimer;
-    initTimer(&myTimer);
-
-    printf("Initializing Timer...\n");
-
-    if (setTimer(&myTimer, 5)) {
-        printf("Timer set to 5.\n");
-    } else {
-        printf("Failed to set timer.\n");
-    }
-
-    while (myTimer.enabled) {
-        if (decrementTimer(&myTimer)) {
-            printf("Timer decremented: %d\n", myTimer.value);
-        }
-
-        if (triggerInterrupt(&myTimer)) {
-            printf("Interrupt triggered!\n");
-        }
-    }
-
-    printf("Resetting Timer...\n");
-    resetTimer(&myTimer);
-
-    printf("Timer reset. Enabled: %d, Value: %d, Interrupt: %d\n", 
-           myTimer.enabled, myTimer.value, myTimer.interrupt_flag);
-
-    return 0;
+void resetTimer(TimerState *state) {
+    state->timer_value = 0;
+    state->timer_enabled = false;
+    state->interrupt_flag = false;
+    state->timer_mode = MODE_DISABLED;
 }
-
